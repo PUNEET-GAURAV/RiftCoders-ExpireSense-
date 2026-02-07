@@ -58,6 +58,11 @@ class NotificationService {
 
     if (androidImplementation != null) {
       final bool? granted = await androidImplementation.requestNotificationsPermission();
+      
+      // CRITICAL: Request Exact Alarm Permission for Android 12+
+      // 'zonedSchedule' with 'exactAllowWhileIdle' requires this.
+      await androidImplementation.requestExactAlarmsPermission();
+
       return granted ?? false;
     }
     return false;
@@ -87,6 +92,10 @@ class NotificationService {
     
     print("Scheduling for $productName (ID: $id). Expiry: $expiryDate, Custom: $customReminderDate");
 
+    // Utilities to generate unique IDs
+    // Base ID structure: product_key * 10 + type_offset
+    // Type Offsets: 1=Standard(Settings), 2=Urgent(1-day), 3=Upcoming(10-day), 4=Custom
+    
     // 1. Schedule custom days before (from Settings)
     final customDate = expiryDate.subtract(Duration(days: daysBefore));
     if (customDate.isAfter(DateTime.now())) {
@@ -117,7 +126,7 @@ class NotificationService {
                 ? "$productName expires in $daysDiff days." 
                 : "$productName expires today!";
              
-             print("Scheduling Custom Reminder for $productName at $customReminderDate");
+             print("Scheduling Custom Reminder for $productName at $customReminderDate with ID ${id * 10 + 4}");
              await _schedule(id * 10 + 4, "Custom Reminder", body, customReminderDate);
         } else {
              print("Custom reminder date $customReminderDate is in the past! Now: ${DateTime.now()}");
@@ -140,16 +149,47 @@ class NotificationService {
             channelDescription: 'Notifications for expiring products',
             importance: Importance.max,
             priority: Priority.high,
+            styleInformation: BigTextStyleInformation(''), // Expandable text
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
+        payload: body, // Payload for tap
       );
       print("Successfully scheduled ID $id");
      } catch (e) {
-       print("Error scheduling notification: $e");
-       // Ignore errors for past dates or scheduling limits
+       print("Error scheduling notification (ID $id): $e");
+       
+       // Fallback: Try scheduling without 'precise' if exact alarm permission is missing
+       if (e.toString().contains("exact_alarms_not_permitted")) {
+           print("Falling back to inexact scheduling for ID $id");
+           try {
+               await flutterLocalNotificationsPlugin.zonedSchedule(
+                id,
+                title,
+                body,
+                tz.TZDateTime.from(scheduledDate, tz.local),
+                const NotificationDetails(
+                  android: AndroidNotificationDetails(
+                    'expiry_channel',
+                    'Expiry Notifications',
+                    channelDescription: 'Notifications for expiring products',
+                    importance: Importance.max,
+                    priority: Priority.high,
+                    styleInformation: BigTextStyleInformation(''),
+                  ),
+                ),
+                androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, // Fallback
+                uiLocalNotificationDateInterpretation:
+                    UILocalNotificationDateInterpretation.absoluteTime,
+                payload: body,
+              );
+              print("Successfully scheduled ID $id (Inexact)");
+           } catch (e2) {
+               print("Fallback failed: $e2");
+           }
+       }
      }
   }
   
