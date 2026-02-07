@@ -26,8 +26,14 @@ class Product extends HiveObject {
   @HiveField(6)
   final String? barcode;
 
-  @HiveField(7)
+  @HiveField(7, defaultValue: false)
   bool isConsumed;
+
+  @HiveField(8, defaultValue: 0.0)
+  double price; // For value tracking
+
+  @HiveField(9)
+  final DateTime? customReminderDate;
 
   Product({
     String? id,
@@ -38,6 +44,8 @@ class Product extends HiveObject {
     this.category,
     this.barcode,
     this.isConsumed = false,
+    this.price = 0.0,
+    this.customReminderDate,
   }) : id = id ?? const Uuid().v4();
 
   int get daysRemaining {

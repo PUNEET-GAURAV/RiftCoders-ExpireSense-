@@ -77,4 +77,4 @@ class AuthService {
   }
 }
 
-final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+

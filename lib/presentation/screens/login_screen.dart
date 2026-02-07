@@ -1,8 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:expiresense/core/services/auth_service.dart';
 import 'package:expiresense/presentation/providers.dart';
+import 'package:expiresense/presentation/widgets/primary_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -12,54 +16,34 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: "demo@test.com");
-  final _passwordController = TextEditingController(text: "password123");
   bool _isLoading = false;
-  bool _isPasswordVisible = false;
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-
+  Future<void> _handleGoogleLogin() async {
     setState(() => _isLoading = true);
-    
     try {
-      // Simulate network delay for realism
-      await Future.delayed(const Duration(milliseconds: 1500));
-      
-      await ref.read(authServiceProvider).login(
-        _emailController.text, 
-        _passwordController.text
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Login Successful (Demo Mode)"),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 1),
-          ),
-        );
-        await Future.delayed(const Duration(milliseconds: 500)); // Short delay to see message
-        if (mounted) context.go('/');
-      }
+      final auth = ref.read(authServiceProvider);
+      await auth.signInWithGoogle();
+      if (mounted) context.go('/');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll("Exception: ", "")),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text("Login Failed: $e"), backgroundColor: Colors.red),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGuestLogin() async {
+    setState(() => _isLoading = true);
+    try {
+      // Guest login just sets a mock state in AuthService
+      final auth = ref.read(authServiceProvider);
+      await auth.login("guest", "guest123"); 
+      if (mounted) context.go('/');
+    } catch (e) {
+       // Should not happen for guest, but safety first
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -68,199 +52,122 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Theme.of(context).colorScheme.primary.withOpacity(0.1),
-              Theme.of(context).colorScheme.surface,
-            ],
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo / Icon
-                Icon(
-                  Icons.eco_rounded, 
-                  size: 80, 
-                  color: Theme.of(context).colorScheme.primary
-                ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
-                
-                const SizedBox(height: 16),
-                
-                Text(
-                  "ExpireSense",
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3),
-                
-                Text(
-                  "Never miss an expiry date",
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-                ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.3),
+      backgroundColor: const Color(0xFF121212),
+      body: Stack(
+        children: [
+          // Background Glows
+          Positioned(
+            top: -100,
+            left: -50,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD500F9).withOpacity(0.15),
+                shape: BoxShape.circle,
 
-                const SizedBox(height: 48),
-
-                // Login Form
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  padding: const EdgeInsets.all(32),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          "Welcome Back",
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            labelText: "Email",
-                            prefixIcon: const Icon(Icons.email_outlined),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) return "Email is required";
-                            if (!value.contains('@')) return "Enter a valid email";
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: !_isPasswordVisible,
-                          decoration: InputDecoration(
-                            labelText: "Password",
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _isPasswordVisible 
-                                  ? Icons.visibility_off 
-                                  : Icons.visibility
-                              ),
-                              onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) return "Password is required";
-                            if (value.length < 6) return "Min 6 characters";
-                            return null;
-                          },
-                        ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        FilledButton(
-                          onPressed: _isLoading ? null : _handleLogin,
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _isLoading 
-                            ? const SizedBox(
-                                height: 20, 
-                                width: 20, 
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
-                              )
-                            : const Text("Sign In", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        Row(
-                          children: [
-                            Expanded(child: Divider(color: Colors.grey.shade300)),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Text("OR", style: TextStyle(color: Colors.grey.shade600)),
-                            ),
-                            Expanded(child: Divider(color: Colors.grey.shade300)),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        OutlinedButton.icon(
-                          onPressed: _isLoading ? null : () async {
-                              setState(() => _isLoading = true);
-                              try {
-                                await ref.read(authServiceProvider).signInWithGoogle();
-                                if (mounted) context.go('/');
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text("Google Sign-In Failed: ${e.toString().replaceAll("Exception: ", "")}")),
-                                  );
-                                }
-                              } finally {
-                                if (mounted) setState(() => _isLoading = false);
-                              }
-                          },
-                          icon: Image.network(
-                            'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
-                            height: 24,
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.login),
-                          ),
-                          label: const Text("Sign in with Google"),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            side: BorderSide(color: Colors.grey.shade300),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ).animate().fadeIn(delay: 600.ms).moveY(begin: 20),
-              ],
+              ),
             ),
           ),
-        ),
+          Positioned(
+            bottom: -50,
+            right: -50,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                color: const Color(0xFF00E5FF).withOpacity(0.15),
+                shape: BoxShape.circle,
+
+              ),
+            ),
+          ),
+
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo
+                  Icon(Icons.lock_open_rounded, size: 80, color: Colors.white)
+                      .animate()
+                      .fadeIn()
+                      .scale(duration: 600.ms, curve: Curves.easeOutBack)
+                      .then()
+                      .shimmer(duration: 2.seconds, delay: 1.seconds),
+                  
+                  const SizedBox(height: 30),
+                  
+                  Text(
+                    "WELCOME BACK",
+                    style: GoogleFonts.orbitron(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 2),
+                  ).animate().fadeIn().slideY(begin: 0.2, end: 0),
+                  
+                  const SizedBox(height: 10),
+                  
+                  Text(
+                    "Sign in to sync your inventory",
+                    style: TextStyle(color: Colors.white54, fontSize: 16),
+                  ).animate().fadeIn(delay: 200.ms),
+
+                  const SizedBox(height: 60),
+
+                  if (_isLoading)
+                    const CircularProgressIndicator(color: Color(0xFF00E5FF))
+                  else
+                    Column(
+                      children: [
+                        // Google Login
+                        PrimaryButton(
+                          text: "Sign in with Google",
+                          icon: Icons.g_mobiledata,
+                          onPressed: _handleGoogleLogin,
+                        ),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Guest Login
+                        SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: OutlinedButton.icon(
+                                onPressed: _handleGuestLogin,
+                                icon: const Icon(Icons.person_outline),
+                                label: Text("Continue as Guest", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold)),
+                                style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                            ),
+                        ),
+                      ],
+                    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, end: 0),
+                  
+                  const SizedBox(height: 40),
+                  
+                  Text(
+                    "By continuing, you agree to our Terms & Privacy Policy",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white24, fontSize: 12),
+                  ).animate().fadeIn(delay: 800.ms),
+                  
+                  const SizedBox(height: 20),
+                  // App Version
+                  Text(
+                      "v1.0.0 Cyber-Tech", 
+                      style: GoogleFonts.outfit(color: const Color(0xFF00E5FF).withOpacity(0.5), fontSize: 10)
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+
+// Needed for blur
+

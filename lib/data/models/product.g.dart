@@ -24,14 +24,16 @@ class ProductAdapter extends TypeAdapter<Product> {
       imagePath: fields[4] as String?,
       category: fields[5] as String?,
       barcode: fields[6] as String?,
-      isConsumed: fields[7] as bool,
+      isConsumed: fields[7] == null ? false : fields[7] as bool,
+      price: fields[8] == null ? 0.0 : fields[8] as double,
+      customReminderDate: fields[9] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Product obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +49,11 @@ class ProductAdapter extends TypeAdapter<Product> {
       ..writeByte(6)
       ..write(obj.barcode)
       ..writeByte(7)
-      ..write(obj.isConsumed);
+      ..write(obj.isConsumed)
+      ..writeByte(8)
+      ..write(obj.price)
+      ..writeByte(9)
+      ..write(obj.customReminderDate);
   }
 
   @override
