@@ -1,0 +1,14 @@
+﻿Analyzing expiresense...                                        
+
+  error - The argument type 'String?' can't be assigned to the parameter type 'String'.  - lib\core\services\analytics_service.dart:8:11 - argument_type_not_assignable
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\presentation\screens\add_product_screen.dart:122:23 - deprecated_member_use
+warning - Unused import: 'package:expiresense/core/services/analytics_service.dart' - lib\presentation\screens\dashboard_screen.dart:1:8 - unused_import
+warning - Unused import: 'package:expiresense/data/models/product.dart' - lib\presentation\screens\dashboard_screen.dart:3:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\screens\dashboard_screen.dart:140:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\screens\inventory_screen.dart:59:54 - deprecated_member_use
+  error - The method 'login' isn't defined for the type 'AuthService' - lib\presentation\screens\login_screen.dart:37:43 - undefined_method
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\screens\login_screen.dart:69:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\screens\login_screen.dart:115:45 - deprecated_member_use
+warning - Unused import: 'package:expiresense/core/theme/app_theme.dart' - lib\presentation\screens\scan_screen.dart:6:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\screens\scan_screen.dart:112:37 - deprecated_member_use
+
