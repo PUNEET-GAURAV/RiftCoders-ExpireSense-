@@ -90,35 +90,32 @@ class NotificationService {
   Future<void> scheduleExpiryNotification(
       int id, String productName, DateTime expiryDate, {int daysBefore = 7, DateTime? customReminderDate}) async {
     
-    print("Scheduling for $productName (ID: $id). Expiry: $expiryDate, Custom: $customReminderDate");
+    print("Scheduling daily countdown for $productName (ID: $id). Expiry: $expiryDate");
 
-    // Utilities to generate unique IDs
-    // Base ID structure: product_key * 10 + type_offset
-    // Type Offsets: 1=Standard(Settings), 2=Urgent(1-day), 3=Upcoming(10-day), 4=Custom
+    // Base ID structure: product_key * 100 + offset
+    // Offsets: 1-7 for daily countdowns, 99 for custom reminder
     
-    // 1. Schedule custom days before (from Settings)
-    final customDate = expiryDate.subtract(Duration(days: daysBefore));
-    if (customDate.isAfter(DateTime.now())) {
-        await _schedule(id * 10 + 1, "Expiry Warning", "$productName expires in $daysBefore days!", customDate);
+    // 1. Schedule Daily Countdowns (7, 6, 5, 4, 3, 2, 1 days before)
+    for (int i = 7; i >= 1; i--) {
+        final reminderDate = expiryDate.subtract(Duration(days: i));
+        if (reminderDate.isAfter(DateTime.now())) {
+            
+            String title = (i == 1) ? "Urgent Expiry!" : "Expiry Warning";
+            String body = (i == 1) 
+                ? "$productName expires tomorrow!" 
+                : "$productName expires in $i days.";
+
+            await _schedule(id * 100 + i, title, body, reminderDate);
+        }
+    }
+    
+    // 2. Schedule Expiry Day Notification (0 days before)
+    // Optional: User might want to know ON the day too.
+    if (expiryDate.isAfter(DateTime.now())) {
+       await _schedule(id * 100 + 0, "Expired!", "$productName expires today!", expiryDate);
     }
 
-    // 2. Schedule 10 days before (Fixed logic)
-    if (daysBefore != 10) {
-      final tenDaysBefore = expiryDate.subtract(const Duration(days: 10));
-      if (tenDaysBefore.isAfter(DateTime.now())) {
-          await _schedule(id * 10 + 3, "Upcoming Expiry", "$productName expires in 10 days.", tenDaysBefore);
-      }
-    }
-
-    // 3. Schedule 1 day before (Urgent)
-    if (daysBefore != 1) { 
-      final oneDayBefore = expiryDate.subtract(const Duration(days: 1));
-      if (oneDayBefore.isAfter(DateTime.now())) {
-          await _schedule(id * 10 + 2, "Urgent Expiry", "$productName expires tomorrow!", oneDayBefore);
-      }
-    }
-
-    // 4. Schedule Specific Custom Reminder (from Product)
+    // 3. Schedule Specific Custom Reminder (from Product)
     if (customReminderDate != null) {
         if (customReminderDate.isAfter(DateTime.now())) {
              final daysDiff = expiryDate.difference(customReminderDate).inDays;
@@ -126,8 +123,8 @@ class NotificationService {
                 ? "$productName expires in $daysDiff days." 
                 : "$productName expires today!";
              
-             print("Scheduling Custom Reminder for $productName at $customReminderDate with ID ${id * 10 + 4}");
-             await _schedule(id * 10 + 4, "Custom Reminder", body, customReminderDate);
+             print("Scheduling Custom Reminder for $productName at $customReminderDate with ID ${id * 100 + 99}");
+             await _schedule(id * 100 + 99, "Custom Reminder", body, customReminderDate);
         } else {
              print("Custom reminder date $customReminderDate is in the past! Now: ${DateTime.now()}");
         }
@@ -149,13 +146,14 @@ class NotificationService {
             channelDescription: 'Notifications for expiring products',
             importance: Importance.max,
             priority: Priority.high,
-            styleInformation: BigTextStyleInformation(''), // Expandable text
+            playSound: true,
+            styleInformation: BigTextStyleInformation(''),
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
-        payload: body, // Payload for tap
+        payload: body,
       );
       print("Successfully scheduled ID $id");
      } catch (e) {
@@ -177,6 +175,7 @@ class NotificationService {
                     channelDescription: 'Notifications for expiring products',
                     importance: Importance.max,
                     priority: Priority.high,
+                    playSound: true,
                     styleInformation: BigTextStyleInformation(''),
                   ),
                 ),
@@ -194,14 +193,12 @@ class NotificationService {
   }
   
   Future<void> cancelNotifications(dynamic productId) async {
-      // Handle both String UUIDs (hash them) or int IDs. 
-      // Product.key is usually int in Hive, but check usage.
-      // If productId is int, use it directly.
       int id = productId is int ? productId : productId.hashCode;
       
-      await flutterLocalNotificationsPlugin.cancel(id * 10 + 1);
-      await flutterLocalNotificationsPlugin.cancel(id * 10 + 2);
-      await flutterLocalNotificationsPlugin.cancel(id * 10 + 3);
-      await flutterLocalNotificationsPlugin.cancel(id * 10 + 4);
+      // Cancel all potential daily countdowns (0-7) and custom reminder (99)
+      for (int i = 0; i <= 7; i++) {
+          await flutterLocalNotificationsPlugin.cancel(id * 100 + i);
+      }
+      await flutterLocalNotificationsPlugin.cancel(id * 100 + 99);
   }
 }
